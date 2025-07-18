@@ -1,4 +1,3 @@
-import sys
 import os
 import time
 import aiohttp
@@ -7,19 +6,13 @@ import asyncio
 from rich.live import Live
 from rich.text import Text
 
-sys.path.append(
-    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "src"))
-)
-
 from ..whatsmyname.list_operations import read_list
 from ..utils.parse import extractMetadata, remove_duplicates
 from ..utils.filter import filterFoundAccounts, applyFilters
 from ..utils.http_client import do_async_request
 from ..utils.log import logError
-from ..export.dump import dumpContent
+from ..export.dump import dump_content
 from ..sites.instagram import get_instagram_account_info
-
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 
 # Verify account existence based on list args
@@ -97,7 +90,7 @@ async def checkSite(
                                 config.saveDirectory, f"dump_{config.currentUser}"
                             )
 
-                            result = dumpContent(path, site, response, config)
+                            result = await dump_content(path, site, response, config)
                             if result and config.verbose:
                                 config.console.print(
                                     "      💾  Saved HTML data from found account"

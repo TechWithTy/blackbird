@@ -12,10 +12,10 @@ from rich.console import Console
 import src.config as config
 from src.modules.core.email import verify_email
 from src.modules.core.username import verify_username
-from src.modules.export.csv import saveToCsv
-from src.modules.export.file_operations import createSaveDirectory
-from src.modules.export.json import saveToJson
-from src.modules.export.pdf import saveToPdf
+from src.modules.export.csv import save_to_csv
+from src.modules.export.file_operations import create_save_directory
+from src.modules.export.json import save_to_json
+from src.modules.export.pdf import save_to_pdf
 from src.modules.utils.file_operations import getLinesFromFile, isFile
 from src.modules.utils.permute import Permute
 from src.modules.utils.userAgent import getRandomUserAgent
@@ -250,7 +250,7 @@ async def main():
         for user in config.username:
             config.currentUser = user
             if config.dump or config.csv or config.pdf or config.json:
-                createSaveDirectory(config)
+                await create_save_directory(config)
             await verify_username(config.currentUser, config)
             if config.ai:
                 if config.usernameFoundAccounts and len(config.usernameFoundAccounts) > 2:
@@ -269,13 +269,12 @@ async def main():
                         ":warning: Not enough accounts found for AI analysis. Skipping AI features."
                     )
 
-            # TODO: Refactor export functions to be async
             if config.csv and config.usernameFoundAccounts:
-                saveToCsv(config.usernameFoundAccounts, config)
+                await save_to_csv(config.usernameFoundAccounts, config)
             if config.pdf and config.usernameFoundAccounts:
-                saveToPdf(config.usernameFoundAccounts, "username", config)
+                await save_to_pdf(config.usernameFoundAccounts, "username", config)
             if config.json and config.usernameFoundAccounts:
-                saveToJson(config.usernameFoundAccounts, config)
+                await save_to_json(config.usernameFoundAccounts, config)
 
             config.currentUser = None
             config.usernameFoundAccounts = None
@@ -294,7 +293,7 @@ async def main():
         for email in config.email:
             config.currentEmail = email
             if config.dump or config.csv or config.pdf or config.json:
-                createSaveDirectory(config)
+                await create_save_directory(config)
             await verify_email(email, config)
             if config.ai:
                 if config.emailFoundAccounts and len(config.emailFoundAccounts) > 2:
@@ -313,13 +312,12 @@ async def main():
                         ":warning: Not enough accounts found for AI analysis. Skipping AI features."
                     )
 
-            # TODO: Refactor export functions to be async
             if config.csv and config.emailFoundAccounts:
-                saveToCsv(config.emailFoundAccounts, config)
+                await save_to_csv(config.emailFoundAccounts, config)
             if config.pdf and config.emailFoundAccounts:
-                saveToPdf(config.emailFoundAccounts, "email", config)
+                await save_to_pdf(config.emailFoundAccounts, "email", config)
             if config.json and config.emailFoundAccounts:
-                saveToJson(config.emailFoundAccounts, config)
+                await save_to_json(config.emailFoundAccounts, config)
             config.currentEmail = None
             config.emailFoundAccounts = None
 

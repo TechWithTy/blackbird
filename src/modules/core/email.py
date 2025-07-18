@@ -2,13 +2,8 @@ import os
 import time
 import aiohttp
 import asyncio
-import sys
 from rich.text import Text
 from rich.live import Live
-
-sys.path.append(
-    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "src"))
-)
 
 from ..utils.filter import filterFoundAccounts, applyFilters
 from ..utils.parse import extractMetadata
@@ -16,7 +11,7 @@ from ..utils.http_client import do_async_request
 from ..whatsmyname.list_operations import read_list
 from ..utils.input import processInput
 from ..utils.log import logError
-from ..export.dump import dumpContent
+from ..export.dump import dump_content
 from ..utils.precheck import perform_pre_check
 
 
@@ -76,7 +71,7 @@ async def checkSite(
                                 config.saveDirectory, f"dump_{config.currentEmail}"
                             )
 
-                            result = dumpContent(path, site, response, config)
+                            result = await dump_content(path, site, response, config)
                             if result and config.verbose:
                                 config.console.print(
                                     "      💾  Saved HTML data from found account"
