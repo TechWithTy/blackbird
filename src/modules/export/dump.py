@@ -1,37 +1,39 @@
+import aiofiles
 import os
-import sys
 import json
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "..", ""))
-
-from utils.log import logError
+from ..utils.log import logError
 
 
-# Dump HTML data to a .html file
-def dumpContent(path, site, response, config):
-
+async def dump_content(path, site, response, config):
+    """Asynchronously dumps response content to a file."""
     siteName = site["name"].replace(" ", "_")
-    content = response["content"]
+    content = response.get("content")
     extension = "txt"
+    is_json = False
 
-    if response["headers"]["Content-Type"]:
-        if "application/json" in response["headers"]["Content-Type"]:
-            extension = "json"
-            content = response["json"]
-        elif "text/html" in response["headers"]["Content-Type"]:
-            extension = "html"
-            content = response["content"]
+    content_type = response.get("headers", {}).get("Content-Type", "")
+    if "application/json" in content_type:
+        extension = "json"
+        content = response.get("json")
+        is_json = True
+    elif "text/html" in content_type:
+        extension = "html"
+
+    if content is None:
+        logError(None, f"No content to dump for site {siteName}", config)
+        return False
 
     fileName = f"{siteName}.{extension}"
-    path = os.path.join(path, fileName)
+    full_path = os.path.join(path, fileName)
 
     try:
-        with open(path, "w", encoding="utf-8") as file:
-            if response["json"]:
-                json.dump(content, file)
+        async with aiofiles.open(full_path, "w", encoding="utf-8") as f:
+            if is_json:
+                await f.write(json.dumps(content, indent=4, ensure_ascii=False))
             else:
-                file.write(content)
+                await f.write(content)
         return True
     except Exception as e:
-        logError(e, f"Coudn't DUMP data to HTML file!", config)
+        logError(e, f"Couldn't dump data for {siteName}!", config)
         return False

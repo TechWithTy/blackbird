@@ -1,28 +1,28 @@
-import csv
-import sys
+import aiofiles
 import os
 
-sys.path.append(
-    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "src"))
-)
-
-from ..export.file_operations import generateName
-
+from .file_operations import generateName
 from ..utils.log import logError
 
-
-# Save results to CSV file
-def saveToCsv(results, config):
+async def save_to_csv(results, config):
+    """Asynchronously saves results to a CSV file."""
     try:
-        fileName = generateName(config, "csv")
-        path = os.path.join(config.saveDirectory, fileName)
-        with open(path, "w", newline="", encoding="utf-8") as file:
-            writer = csv.writer(file)
-            writer.writerow(["name", "url"])
-            for result in results:
-                writer.writerow([result["name"], result["url"]])
-        config.console.print(f"💾  Saved results to '[cyan1]{fileName}[/cyan1]'")
+        filename = generateName(config, "csv")
+        path = os.path.join(config.saveDirectory, filename)
+        
+        # The csv module is synchronous, so we format strings and write them asynchronously.
+        header = '"name","url"\n'
+        rows = [header]
+        for result in results:
+            name = str(result.get("name", "")).replace('"', '""')
+            url = str(result.get("url", "")).replace('"', '""')
+            rows.append(f'"{name}","{url}"\n')
+
+        async with aiofiles.open(path, "w", encoding="utf-8") as f:
+            await f.writelines(rows)
+            
+        config.console.print(f"💾  Saved results to '[cyan1]{filename}[/cyan1]'")
         return True
     except Exception as e:
-        logError(e, "Coudn't saved results to CSV file!", config)
+        logError(e, "Couldn't save results to CSV file!", config)
         return False
