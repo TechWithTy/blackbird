@@ -1,10 +1,10 @@
 import os
-from pathlib import Path
-from rich.markup import escape
 import time
 import aiohttp
 import asyncio
 import sys
+from rich.text import Text
+from rich.live import Live
 
 sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "src"))
@@ -13,7 +13,7 @@ sys.path.append(
 from ..utils.filter import filterFoundAccounts, applyFilters
 from ..utils.parse import extractMetadata
 from ..utils.http_client import do_async_request
-from ..whatsmyname.list_operations import readList
+from ..whatsmyname.list_operations import read_list
 from ..utils.input import processInput
 from ..utils.log import logError
 from ..export.dump import dumpContent
@@ -44,12 +44,12 @@ async def checkSite(
                 site["pre_check"], headers, config
             )
             headers = authenticated_headers
-            if headers == False:
+            if not headers:
                 returnData["status"] = "ERROR"
                 return returnData
 
         response = await do_async_request(method, url, session, config, data, headers)
-        if response == None:
+        if response is None:
             returnData["status"] = "ERROR"
             return returnData
         try:
@@ -77,9 +77,9 @@ async def checkSite(
                             )
 
                             result = dumpContent(path, site, response, config)
-                            if result == True and config.verbose:
+                            if result and config.verbose:
                                 config.console.print(
-                                    f"      💾  Saved HTML data from found account"
+                                    "      💾  Saved HTML data from found account"
                                 )
                 else:
                     returnData["status"] = "NOT-FOUND"
@@ -94,11 +94,7 @@ async def checkSite(
 
 
 # Control survey on list sites
-from rich.text import Text
-from rich.live import Live
-
 async def fetchResults(email, config):
-    data = readList("email", config)
     originalEmail = email
     async with aiohttp.ClientSession() as session:
         tasks = []
@@ -150,14 +146,14 @@ async def fetchResults(email, config):
 
 
 # Start email check and presents results to user
-def verifyEmail(email, config):
+async def verify_email(email, config):
 
-    data = readList("email", config)
+    data = await read_list("email", config)
     sitesToSearch = data["sites"]
     config.email_sites = applyFilters(sitesToSearch, config)
 
     start_time = time.time()
-    results = asyncio.run(fetchResults(email, config))
+    results = await fetchResults(email, config)
     end_time = time.time()
 
     config.console.print(

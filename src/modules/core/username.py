@@ -5,15 +5,13 @@ import aiohttp
 import asyncio
 
 from rich.live import Live
-from rich.console import Console
 from rich.text import Text
-from rich.panel import Panel
 
 sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 )
 
-from ..whatsmyname.list_operations import readList
+from ..whatsmyname.list_operations import read_list
 from ..utils.parse import extractMetadata, remove_duplicates
 from ..utils.filter import filterFoundAccounts, applyFilters
 from ..utils.http_client import do_async_request
@@ -44,7 +42,7 @@ async def checkSite(
 
     async with semaphore:
         response = await do_async_request(method, url, session, config)
-        if response == None:
+        if response is None:
             returnData["status"] = "ERROR"
             return returnData
         try:
@@ -71,11 +69,12 @@ async def checkSite(
                             )
                             extractedMetadata.extend(metadata)
 
-                        if config.ai and config.aiModel:
-                            metadata = extract_data_with_ai(
-                                config, site, response["content"], response["json"]
-                            )
-                            extractedMetadata.extend(metadata)
+                        # if config.ai and config.aiModel:
+                        #     # TODO: Implement or find extract_data_with_ai function
+                        #     metadata = extract_data_with_ai(
+                        #         config, site, response["content"], response["json"]
+                        #     )
+                        #     extractedMetadata.extend(metadata)
 
                         if site["name"] == "Instagram":
                             if config.instagram_session_id:
@@ -99,9 +98,9 @@ async def checkSite(
                             )
 
                             result = dumpContent(path, site, response, config)
-                            if result == True and config.verbose:
+                            if result and config.verbose:
                                 config.console.print(
-                                    f"      💾  Saved HTML data from found account"
+                                    "      💾  Saved HTML data from found account"
                                 )
                 else:
                     returnData["status"] = "NOT-FOUND"
@@ -114,10 +113,6 @@ async def checkSite(
             logError(e, f"Coudn't check {site['name']} {url}", config)
             return returnData
 
-
-from rich.live import Live
-from rich.console import Group
-from rich.text import Text
 
 async def fetchResults(username, config):
     async with aiohttp.ClientSession() as session:
@@ -159,18 +154,20 @@ async def fetchResults(username, config):
 
 
 # Start username check and presents results to user
-def verifyUsername(username, config, sitesToSearch=None, metadata_params=None):
-    if sitesToSearch is None or metadata_params is None:
-        data = readList("username", config)
+async def verify_username(username, config, sitesToSearch=None, metadata_params=None):
+    if not sitesToSearch:
+        data = await read_list("username", config)
         sitesToSearch = data["sites"]
-        config.metadata_params = readList("metadata", config)
-    else:
-        config.metadata_params = metadata_params
 
+    if not metadata_params:
+        metadata_params = await read_list("metadata", config)
+
+    config.metadata_params = metadata_params
     config.username_sites = applyFilters(sitesToSearch, config)
+    config.currentUser = username
 
     start_time = time.time()
-    results = asyncio.run(fetchResults(username, config))
+    results = await fetchResults(username, config)
     end_time = time.time()
 
     config.console.print(
