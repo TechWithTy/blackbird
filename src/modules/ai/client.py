@@ -1,4 +1,4 @@
-from utils.http_client import do_sync_request
+from utils.http_client import do_async_request
 import time
 import sys
 from rich.text import Text
@@ -6,8 +6,8 @@ import json
 from .key_manager import load_api_key_from_file
 from utils.log import logError
 
-def send_prompt(prompt, config):
-    config.console.print(f":sparkles: Analyzing with AI...")
+async def send_prompt(prompt, session, config):
+    config.console.print(":sparkles: Analyzing with AI...")
     apikey = load_api_key_from_file(config)
     if not apikey:
         config.console.print(":x: No API key found. Please obtain an API key first with --setup-ai")
@@ -25,33 +25,34 @@ def send_prompt(prompt, config):
 
 
     try:
-        response = do_sync_request(
+        response = await do_async_request(
             method="POST",
             url=config.api_url + "/analyze",
+            session=session,
             config=config,
             customHeaders=headers,
             data=payload
         )
 
-        if response is not None:
-            try:
-                data = response.json()
-            except json.JSONDecodeError:
-                data = None        
+        if response is None:
+            return None
 
-        if response.status_code != 200 and data:
-            config.console.print(f":x: {data['message']}")
+        try:
+            data = await response.json()
+        except json.JSONDecodeError:
+            data = None        
+
+        if response.status != 200 and data:
+            config.console.print(f":x: {data.get('message', 'Unknown error')}")
             return None
         
-        if response.status_code == 200 and data:
-
-            if data["success"]:
-                show_results(data, config)
-                return data["data"]["result"]
+        if response.status == 200 and data and data.get("success"):
+            show_results(data, config)
+            return data.get("data", {}).get("result")
         return None
 
     except Exception as e:
-        config.console.print(f":x: Error sending prompt to API!")
+        config.console.print(":x: Error sending prompt to API!")
         logError(e, "Error sending prompt to API!", config)
         return None
 

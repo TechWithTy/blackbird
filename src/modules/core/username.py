@@ -1,6 +1,5 @@
 import os
 import time
-import aiohttp
 import asyncio
 
 from rich.live import Live
@@ -34,7 +33,9 @@ async def checkSite(
     extractedMetadata = []
 
     async with semaphore:
-        response = await do_async_request(method, url, session, config)
+        response = await do_async_request(
+            method, url, session, config
+        )
         if response is None:
             returnData["status"] = "ERROR"
             return returnData
@@ -90,7 +91,7 @@ async def checkSite(
                                 config.saveDirectory, f"dump_{config.currentUser}"
                             )
 
-                            result = await dump_content(path, site, response, config)
+                            result = await dump_content(path, site, response["content"], config)
                             if result and config.verbose:
                                 config.console.print(
                                     "      💾  Saved HTML data from found account"
@@ -107,47 +108,44 @@ async def checkSite(
             return returnData
 
 
-async def fetchResults(username, config):
-    async with aiohttp.ClientSession() as session:
-        semaphore = asyncio.Semaphore(config.max_concurrent_requests)
-        total_sites = len(config.username_sites)
-        completed = 0
-        results = []
+async def fetchResults(username, config, session):
+    semaphore = asyncio.Semaphore(config.max_concurrent_requests)
+    total_sites = len(config.username_sites)
+    completed = 0
+    results = []
 
-        def render():
-            percent = int((completed / total_sites) * 100)
-            return Text.from_markup(
-                f"🛰️  Enumerating accounts with username [cyan1]\"{username}\"[/cyan1] — [green1]{percent}%[/green1] ({completed}/{total_sites})"
-            )
+    def render():
+        percent = int((completed / total_sites) * 100)
+        return Text.from_markup(
+            f"🛰️  Enumerating accounts with username [cyan1]\"{username}\"[/cyan1] — [green1]{percent}%[/green1] ({completed}/{total_sites})"
+        )
 
-        async def wrappedCheck(site):
-            nonlocal completed
-            result = await checkSite(
-                site=site,
-                method="GET",
-                url=site["uri_check"].replace("{account}", username),
-                session=session,
-                semaphore=semaphore,
-                config=config,
-            )
-            completed += 1
-            return result
+    async def wrappedCheck(site):
+        nonlocal completed
+        result = await checkSite(
+            site=site,
+            method="GET",
+            url=site["uri_check"].replace("{account}", username),
+            session=session,
+            semaphore=semaphore,
+            config=config,
+        )
+        completed += 1
+        return result
 
-        tasks = [wrappedCheck(site) for site in config.username_sites]
+    tasks = [wrappedCheck(site) for site in config.username_sites]
 
-        with Live(render(), refresh_per_second=10, console=config.console) as live:
-            for coro in asyncio.as_completed(tasks):
-                result = await coro
-                results.append(result)
-                live.update(render())
+    with Live(render(), refresh_per_second=10, console=config.console) as live:
+        for coro in asyncio.as_completed(tasks):
+            result = await coro
+            results.append(result)
+            live.update(render())
 
-        return {"results": results, "username": username}
-
-
+    return {"results": results, "username": username}
 
 
 # Start username check and presents results to user
-async def verify_username(username, config, sitesToSearch=None, metadata_params=None):
+async def verify_username(username, config, session, sitesToSearch=None, metadata_params=None):
     if not sitesToSearch:
         data = await read_list("username", config)
         sitesToSearch = data["sites"]
@@ -160,7 +158,7 @@ async def verify_username(username, config, sitesToSearch=None, metadata_params=
     config.currentUser = username
 
     start_time = time.time()
-    results = await fetchResults(username, config)
+    results = await fetchResults(username, config, session)
     end_time = time.time()
 
     config.console.print(

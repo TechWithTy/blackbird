@@ -1,11 +1,6 @@
 import requests
-import sys
-import os
 import chardet
-
-sys.path.append(os.path.join(os.path.dirname(__file__), "."))
-
-from log import logError
+from .log import logError
 
 requests.packages.urllib3.disable_warnings()
 
@@ -65,10 +60,10 @@ async def do_async_request(method, url, session, config, data=None, customHeader
         json = None
         try:
             content = await response.text()
-        except:
+        except Exception:
             binaryContent = await response.read()
             encode = chardet.detect(binaryContent)["encoding"]
-            content = binaryContent.decode(encode)
+            content = binaryContent.decode(encode, errors='ignore')
 
         if "Content-Type" in response.headers:
             if "application/json" in response.headers["Content-Type"]:
