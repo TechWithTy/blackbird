@@ -128,7 +128,29 @@ def initiate():
     config.about = args.about
     config.instagram_session_id = os.getenv("INSTAGRAM_SESSION_ID")
     config.api_url = os.getenv("API_URL")
-    config.console = Console()
+    # Disable Rich console if NO_COLOR is set or stdout is not a TTY (prevents Unicode errors on Windows)
+    import sys
+    if os.environ.get('NO_COLOR') or not sys.stdout.isatty():
+        # Create a dummy console that mimics Rich Console interface but does nothing
+        class DummyConsole:
+            def print(self, *args, **kwargs):
+                pass
+            def set_live(self, *args, **kwargs):
+                pass
+            def show_cursor(self, *args, **kwargs):
+                pass
+            def hide_cursor(self, *args, **kwargs):
+                pass
+            def __enter__(self):
+                return self
+            def __exit__(self, *args, **kwargs):
+                pass
+            def __getattr__(self, name):
+                # Return a no-op function for any other method calls
+                return lambda *args, **kwargs: None
+        config.console = DummyConsole()
+    else:
+        config.console = Console()
     config.dateRaw = datetime.now().strftime("%m_%d_%Y")
     config.datePretty = datetime.now().strftime("%B %d, %Y")
     config.userAgent = getRandomUserAgent(config)
@@ -144,8 +166,14 @@ def initiate():
 async def main():
     """Main async function to run the OSINT search."""
     initiate()
-    config.console.print(
-        """[red]
+    # Skip banner if NO_COLOR is set or stdout is not a TTY (non-interactive mode)
+    import os
+    import sys
+    skip_banner = os.environ.get('NO_COLOR') or not sys.stdout.isatty()
+    if not skip_banner:
+        try:
+            config.console.print(
+                """[red]
     ▄▄▄▄    ██▓    ▄▄▄       ▄████▄   ██ ▄█▀ ▄▄▄▄    ██▓ ██▀███  ▓█████▄ 
     ▓█████▄ ▓██▒   ▒████▄    ▒██▀ ▀█   ██▄█▒ ▓█████▄ ▓██▒▓██ ▒ ██▒▒██▀ ██▌
     ▒██▒ ▄██▒██░   ▒██  ▀█▄  ▒▓█    ▄ ▓███▄░ ▒██▒ ▄██▒██▒▓██ ░▄█ ▒░██   █▌
@@ -158,10 +186,13 @@ async def main():
         ░                  ░                     ░               ░      
 
     [/red]"""
-    )
-    config.console.print(
-        f"             [white]{config.splash_line}[/white] | by [red]Lucas Antoniaci[/red]"
-    )
+            )
+            config.console.print(
+                f"             [white]{config.splash_line}[/white] | by [red]Lucas Antoniaci[/red]"
+            )
+        except (UnicodeEncodeError, OSError):
+            # Silently skip banner if encoding fails (e.g., Windows console)
+            pass
 
     if config.about:
         config.console.print(
